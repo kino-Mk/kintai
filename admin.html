@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>勤怠管理（管理者）</title>
+  <style>
+    body { font-family: system-ui; margin: 20px; }
+    table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+    th, td { border: 1px solid #ccc; padding: 6px; text-align: center; }
+    th { background: #eee; }
+    button { padding: 6px 12px; margin: 4px; }
+    .card { padding: 16px; background: #fff; border-radius: 8px; }
+  </style>
+</head>
+<body>
+
+  <h1>勤怠管理（管理者）</h1>
+
+  <!-- 従業員登録 -->
+  <div class="card">
+    <h2>従業員登録</h2>
+    <input type="text" id="empId" placeholder="従業員ID（例：1001）">
+    <input type="text" id="empName" placeholder="氏名（例：山田太郎）">
+    <button id="btnAddEmp">登録</button>
+  </div>
+
+  <!-- 従業員一覧 -->
+  <div class="card">
+    <h2>従業員一覧</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>氏名</th>
+          <th>削除</th>
+        </tr>
+      </thead>
+      <tbody id="empBody"></tbody>
+    </table>
+  </div>
+<button id="btnExportCsv">CSVエクスポート</button>
+<div class="card">
+  <h2>月次CSVエクスポート</h2>
+  <label>対象年月：</label>
+  <input type="month" id="csvMonth">
+  <button id="btnExportMonthly">月次CSV出力</button>
+</div>
+<div class="card">
+  <h2>勤怠申請一覧</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>従業員ID</th>
+        <th>氏名</th>
+        <th>申請種別</th>
+        <th>日付</th>
+        <th>時刻</th>
+        <th>理由</th>
+        <th>削除</th>
+      </tr>
+    </thead>
+    <tbody id="reqBody"></tbody>
+  </table>
+</div>
+
+  <script>
+    const EMP_KEY = "employees";
+
+    let employees = loadEmployees();
+
+    const empBody = document.getElementById("empBody");
+    const btnAddEmp = document.getElementById("btnAddEmp");
+    const empIdInput = document.getElementById("empId");
+    const empNameInput = document.getElementById("empName");
+
+    renderEmployees();
+
+    // 従業員登録
+    btnAddEmp.onclick = () => {
+      const id = empIdInput.value.trim();
+      const name = empNameInput.value.trim();
+
+      if (!id || !name) return alert("IDと氏名を入力してください");
+
+      // ID重複チェック
+      if (employees.some(e => e.id === id)) {
+        return alert("この従業員IDはすでに登録されています");
+      }
+
+      const newEmp = { id, name };
+      employees.push(newEmp);
+      saveEmployees();
+      renderEmployees();
+
+      empIdInput.value = "";
+      empNameInput.value = "";
+    };
+
+    // 従業員削除
+    function delEmp(id) {
+      if (!confirm("削除しますか？")) return;
+      employees = employees.filter(e => e.id !== id);
+      saveEmployees();
+      renderEmployees();
+    }
+
+    // 表示更新
+    function renderEmployees() {
+      empBody.innerHTML = "";
+      employees.forEach(e => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${e.id}</td>
+          <td>${e.name}</td>
+          <td><button onclick="delEmp('${e.id}')">削除</button></td>
+        `;
+        empBody.appendChild(tr);
+      });
+    }
+
+    function loadEmployees() {
+      return JSON.parse(localStorage.getItem(EMP_KEY) || "[]");
+    }
+
+    function saveEmployees() {
+      localStorage.setItem(EMP_KEY, JSON.stringify(employees));
+    }
+const KINTAI_KEY = "kintai_records";
+let records = JSON.parse(localStorage.getItem(KINTAI_KEY) || "[]");
+
+// CSVエクスポート
+document.getElementById("btnExportCsv").onclick = () => {
+  if (records.length === 0) {
+    alert("勤怠データがありません");
+    return;
+  }
+
+  // CSVヘッダ
+  let csv = "従業員ID,従業員氏名,YYYYMMDDHHMM\n";
+
+  records.forEach(r => {
+    // 出勤
+    if (r.clockIn) {
+      const dt = r.date.replace(/-/g, "") + r.clockIn.replace(":", "");
+      csv += `${r.empId},${r.name},${dt}\n`;
+    }
+
+    // 退勤
+    if (r.clockOut) {
+      const dt = r.date.replace(/-/g, "") + r.clockOut.replace(":", "");
+      csv += `${r.empId},${r.name},${dt}\n`;
+    }
+  });
+
+  const blob = new Blob([csv], { type: "text/csv" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "kintai_export.csv";
+  a.click();
+};
+
+// 月次CSV出力
+document.getElementById("btnExportMonthly").onclick = () => {
+  const month = document.getElementById("csvMonth").value; // 例: 2025-02
+  if (!month) {
+    alert("対象年月を選択してください");
+    return;
+  }
+
+  const [year, mon] = month.split("-");
+  const targetYM = year + mon; // 例: 202502
+
+  // 対象月のデータ抽出
+  const monthly = records.filter(r => r.date.startsWith(`${year}-${mon}`));
+
+  if (monthly.length === 0) {
+    alert("対象月のデータがありません");
+    return;
+  }
+
+  // CSVヘッダ
+  let csv = "従業員ID,従業員氏名,YYYYMMDDHHMM\n";
+
+  monthly.forEach(r => {
+    const baseDate = r.date.replace(/-/g, ""); // YYYYMMDD
+
+    // 出勤
+    if (r.clockIn) {
+      const dt = baseDate + r.clockIn.replace(":", "");
+      csv += `${r.empId},${r.name},${dt}\n`;
+    }
+
+    // 退勤
+    if (r.clockOut) {
+      const dt = baseDate + r.clockOut.replace(":", "");
+      csv += `${r.empId},${r.name},${dt}\n`;
+    }
+  });
+
+  const blob = new Blob([csv], { type: "text/csv" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `kintai_${targetYM}.csv`;
+  a.click();
+};
+const REQ_KEY = "kintai_requests";
+let requests = JSON.parse(localStorage.getItem(REQ_KEY) || "[]");
+
+const reqBody = document.getElementById("reqBody");
+
+renderRequests();
+
+// 申請一覧表示
+function renderRequests() {
+  reqBody.innerHTML = "";
+  requests.forEach(r => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${r.id}</td>
+      <td>${r.empId}</td>
+      <td>${r.name}</td>
+      <td>${r.type}</td>
+      <td>${r.date}</td>
+      <td>${r.time || "-"}</td>
+      <td>${r.reason || "-"}</td>
+      <td><button onclick="delReq(${r.id})">削除</button></td>
+    `;
+    reqBody.appendChild(tr);
+  });
+}
+
+// 申請削除
+function delReq(id) {
+  if (!confirm("申請を削除しますか？")) return;
+  requests = requests.filter(r => r.id !== id);
+  localStorage.setItem(REQ_KEY, JSON.stringify(requests));
+  renderRequests();
+}
+  </script>
+
+</body>
+</html>

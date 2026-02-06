@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>勤怠申請</title>
+  <style>
+    body { font-family: system-ui; margin: 12px; background: #f5f5f5; }
+    .card {
+      background: #fff; padding: 16px; border-radius: 12px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    select, input, button {
+      width: 100%; padding: 14px; font-size: 18px;
+      margin-top: 12px; border-radius: 8px; border: 1px solid #ccc;
+    }
+    button {
+      background: #1976d2; color: #fff; border: none;
+    }
+    #reqStatus { margin-top: 12px; font-size: 16px; }
+  </style>
+  <link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1976d2">
+</head>
+<body>
+
+  <h2>勤怠申請</h2>
+
+  <div class="card">
+    <div id="empInfo" style="font-size:18px; margin-bottom:12px;"></div>
+
+    <select id="reqType">
+      <option value="有給">有給</option>
+      <option value="欠勤">欠勤</option>
+      <option value="遅刻">遅刻</option>
+      <option value="早退">早退</option>
+      <option value="残業">残業</option>
+    </select>
+
+    <input type="date" id="reqDate">
+    <input type="time" id="reqTime">
+    <input type="text" id="reqReason" placeholder="理由（任意）">
+
+    <button id="btnSendRequest">申請する</button>
+
+    <div id="reqStatus"></div>
+  </div>
+
+  <script>
+    // PWA Service Worker 登録
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("service-worker.js");
+}
+    const EMP_KEY = "employees";
+    const REQ_KEY = "kintai_requests";
+
+    let employees = JSON.parse(localStorage.getItem(EMP_KEY) || "[]");
+    let requests = JSON.parse(localStorage.getItem(REQ_KEY) || "[]");
+
+    const params = new URLSearchParams(location.search);
+    const empId = params.get("empId");
+
+    const emp = employees.find(e => e.id === empId);
+    if (!emp) {
+      alert("従業員が存在しません");
+      location.href = "select.html";
+    }
+
+    document.getElementById("empInfo").textContent =
+      `従業員：${emp.id} ${emp.name}`;
+
+    document.getElementById("btnSendRequest").onclick = () => {
+      const type = document.getElementById("reqType").value;
+      const date = document.getElementById("reqDate").value;
+      const time = document.getElementById("reqTime").value;
+      const reason = document.getElementById("reqReason").value;
+
+      if (!date) return msg("対象日を入力してください");
+
+      const req = {
+        id: Date.now(),
+        empId,
+        name: emp.name,
+        type,
+        date,
+        time,
+        reason
+      };
+
+      requests.push(req);
+      localStorage.setItem(REQ_KEY, JSON.stringify(requests));
+
+      msg("申請を送信しました");
+    };
+
+    function msg(t) {
+      document.getElementById("reqStatus").textContent = t;
+    }
+  </script>
+
+</body>
+</html>

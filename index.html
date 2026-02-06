@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>打刻</title>
+  <style>
+    body { font-family: system-ui; margin: 12px; background: #f5f5f5; }
+    .card {
+      background: #fff; padding: 16px; border-radius: 12px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    button {
+      width: 100%; padding: 16px; font-size: 20px;
+      margin-top: 12px; border-radius: 8px; border: none;
+      background: #1976d2; color: #fff;
+    }
+    button.secondary { background: #555; }
+    #status { margin-top: 12px; font-size: 16px; }
+  </style>
+  <link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1976d2">
+</head>
+<body>
+
+  <h2>打刻</h2>
+
+  <div class="card">
+    <div id="empInfo" style="font-size:18px; margin-bottom:12px;"></div>
+
+    <button id="btnClockIn">出勤</button>
+    <button id="btnClockOut" class="secondary">退勤</button>
+
+    <div id="status"></div>
+  </div>
+
+  <script>
+    // PWA Service Worker 登録
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("service-worker.js");
+}
+    const EMP_KEY = "employees";
+    const KINTAI_KEY = "kintai_records";
+
+    let employees = JSON.parse(localStorage.getItem(EMP_KEY) || "[]");
+    let records = JSON.parse(localStorage.getItem(KINTAI_KEY) || "[]");
+
+    const params = new URLSearchParams(location.search);
+    const empId = params.get("empId");
+
+    const emp = employees.find(e => e.id === empId);
+    if (!emp) {
+      alert("従業員が存在しません");
+      location.href = "select.html";
+    }
+
+    document.getElementById("empInfo").textContent =
+      `従業員：${emp.id} ${emp.name}`;
+
+    document.getElementById("btnClockIn").onclick = () => punch("clockIn");
+    document.getElementById("btnClockOut").onclick = () => punch("clockOut");
+
+    function punch(type) {
+      const now = new Date();
+      const date = now.toISOString().slice(0, 10);
+      const time = now.toTimeString().slice(0, 5);
+
+      let rec = records.find(r => r.empId === empId && r.date === date);
+      if (!rec) {
+        rec = { id: Date.now(), empId, name: emp.name, date, clockIn: "", clockOut: "" };
+        records.push(rec);
+      }
+
+      if (type === "clockIn") {
+        if (rec.clockIn) return msg("本日はすでに出勤済みです");
+        rec.clockIn = time;
+        msg(`出勤打刻しました：${time}`);
+      } else {
+        if (!rec.clockIn) return msg("出勤打刻がありません");
+        if (rec.clockOut) return msg("本日はすでに退勤済みです");
+        rec.clockOut = time;
+        msg(`退勤打刻しました：${time}`);
+      }
+
+      localStorage.setItem(KINTAI_KEY, JSON.stringify(records));
+    }
+
+    function msg(t) {
+      document.getElementById("status").textContent = t;
+    }
+  </script>
+
+</body>
+</html>

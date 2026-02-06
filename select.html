@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>従業員選択</title>
+  <style>
+    body {
+      font-family: system-ui;
+      margin: 12px;
+      background: #f5f5f5;
+    }
+    .card {
+      background: #fff;
+      padding: 16px;
+      border-radius: 12px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+    select, button {
+      width: 100%;
+      padding: 14px;
+      font-size: 18px;
+      margin-top: 12px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+    }
+    button {
+      background: #1976d2;
+      color: #fff;
+      border: none;
+    }
+    button.secondary {
+      background: #555;
+    }
+  </style>
+  <link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1976d2">
+</head>
+<body>
+
+  <h2>従業員を選択してください</h2>
+
+  <div class="card">
+    <select id="employeeSelect"></select>
+
+    <button id="btnGoPunch">打刻ページへ</button>
+    <button id="btnGoRequest" class="secondary">勤怠申請ページへ</button>
+  </div>
+
+  <script>
+    // PWA Service Worker 登録
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("service-worker.js");
+}
+    const EMP_KEY = "employees";
+    let employees = JSON.parse(localStorage.getItem(EMP_KEY) || "[]");
+
+    const empSelect = document.getElementById("employeeSelect");
+
+    employees.forEach(e => {
+      const opt = document.createElement("option");
+      opt.value = e.id;
+      opt.textContent = `${e.id} ${e.name}`;
+      empSelect.appendChild(opt);
+    });
+
+    document.getElementById("btnGoPunch").onclick = () => {
+      location.href = `index.html?empId=${empSelect.value}`;
+    };
+
+    document.getElementById("btnGoRequest").onclick = () => {
+      location.href = `request.html?empId=${empSelect.value}`;
+    };
+  </script>
+
+</body>
+</html>
