@@ -21,6 +21,7 @@
   </style>
   <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#1976d2">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
@@ -47,13 +48,39 @@
   </div>
 
   <script>
+      // APIキーなどの設定  
+        const SUPABASE_URL = "https://xxxx.supabase.co";  // https://erasqrxlhxjzkpttlohk.supabase.co
+        const SUPABASE_KEY = "public-anon-key";           // sb_publishable_hRbRNAvPFYNd9ROWgg5vrw_G_hsfjSa
+
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
     // PWA Service Worker 登録
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("service-worker.js");
 }
-    const EMP_KEY = "employees";
-    const REQ_KEY = "kintai_requests";
+async function sendRequest() {
+  const type = reqType.value;
+  const date = reqDate.value;
+  const time = reqTime.value;
+  const reason = reqReason.value;
 
+  if (!date) return msg("対象日を入力してください");
+
+  const { error } = await supa.from("requests").insert({
+    emp_id: empId,
+    name: emp.name,
+    type,
+    date,
+    time,
+    reason
+  });
+
+  if (error) {
+    msg("申請エラー：" + error.message);
+  } else {
+    msg("申請を送信しました");
+  }
+}
     let employees = JSON.parse(localStorage.getItem(EMP_KEY) || "[]");
     let requests = JSON.parse(localStorage.getItem(REQ_KEY) || "[]");
 

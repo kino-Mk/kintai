@@ -36,6 +36,7 @@
   </style>
   <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#1976d2">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
@@ -49,21 +50,36 @@
   </div>
 
   <script>
+        // APIキーなどの設定
+        const SUPABASE_URL = "https://xxxx.supabase.co";  // https://erasqrxlhxjzkpttlohk.supabase.co
+        const SUPABASE_KEY = "public-anon-key";           // sb_publishable_hRbRNAvPFYNd9ROWgg5vrw_G_hsfjSa
+
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
     // PWA Service Worker 登録
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("service-worker.js");
 }
-    const EMP_KEY = "employees";
-    let employees = JSON.parse(localStorage.getItem(EMP_KEY) || "[]");
+async function loadEmployees() {
+  const { data, error } = await supa
+    .from("employees")
+    .select("*")
+    .order("id");
 
-    const empSelect = document.getElementById("employeeSelect");
+  if (error) {
+    alert("従業員の取得に失敗しました：" + error.message);
+    return;
+  }
 
-    employees.forEach(e => {
-      const opt = document.createElement("option");
-      opt.value = e.id;
-      opt.textContent = `${e.id} ${e.name}`;
-      empSelect.appendChild(opt);
-    });
+  data.forEach(e => {
+    const opt = document.createElement("option");
+    opt.value = e.id;
+    opt.textContent = `${e.id} ${e.name}`;
+    empSelect.appendChild(opt);
+  });
+}
+
+loadEmployees();
 
     document.getElementById("btnGoPunch").onclick = () => {
       location.href = `index.html?empId=${empSelect.value}`;

@@ -20,6 +20,7 @@
   </style>
   <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#1976d2">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
@@ -35,56 +36,59 @@
   </div>
 
   <script>
+      // APIキーなどの設定  
+        const SUPABASE_URL = "https://xxxx.supabase.co";  // https://erasqrxlhxjzkpttlohk.supabase.co
+        const SUPABASE_KEY = "public-anon-key";           // sb_publishable_hRbRNAvPFYNd9ROWgg5vrw_G_hsfjSa
+
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
     // PWA Service Worker 登録
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("service-worker.js");
 }
-    const EMP_KEY = "employees";
-    const KINTAI_KEY = "kintai_records";
+async function punch(type) {
+  const now = new Date();
+  const date = now.toISOString().slice(0, 10);
+  const time = now.toTimeString().slice(0, 5);
 
-    let employees = JSON.parse(localStorage.getItem(EMP_KEY) || "[]");
-    let records = JSON.parse(localStorage.getItem(KINTAI_KEY) || "[]");
+  // 1. 既存レコードを検索
+  const { data: existing, error: selErr } = await supa
+    .from("kintai")
+    .select("*")
+    .eq("emp_id", empId)
+    .eq("date", date)
+    .maybeSingle();
 
-    const params = new URLSearchParams(location.search);
-    const empId = params.get("empId");
+  if (selErr) {
+    msg("エラー：" + selErr.message);
+    return;
+  }
 
-    const emp = employees.find(e => e.id === empId);
-    if (!emp) {
-      alert("従業員が存在しません");
-      location.href = "select.html";
-    }
+  // 2. 新規 or 更新
+  if (!existing) {
+    // 新規
+    const { error: insErr } = await supa.from("kintai").insert({
+      emp_id: empId,
+      name: emp.name,
+      date,
+      clock_in: type === "clockIn" ? time : null,
+      clock_out: type === "clockOut" ? time : null
+    });
+    if (insErr) return msg("登録エラー：" + insErr.message);
+  } else {
+    // 更新
+    const { error: updErr } = await supa
+      .from("kintai")
+      .update({
+        clock_in: type === "clockIn" ? time : existing.clock_in,
+        clock_out: type === "clockOut" ? time : existing.clock_out
+      })
+      .eq("id", existing.id);
+    if (updErr) return msg("更新エラー：" + updErr.message);
+  }
 
-    document.getElementById("empInfo").textContent =
-      `従業員：${emp.id} ${emp.name}`;
-
-    document.getElementById("btnClockIn").onclick = () => punch("clockIn");
-    document.getElementById("btnClockOut").onclick = () => punch("clockOut");
-
-    function punch(type) {
-      const now = new Date();
-      const date = now.toISOString().slice(0, 10);
-      const time = now.toTimeString().slice(0, 5);
-
-      let rec = records.find(r => r.empId === empId && r.date === date);
-      if (!rec) {
-        rec = { id: Date.now(), empId, name: emp.name, date, clockIn: "", clockOut: "" };
-        records.push(rec);
-      }
-
-      if (type === "clockIn") {
-        if (rec.clockIn) return msg("本日はすでに出勤済みです");
-        rec.clockIn = time;
-        msg(`出勤打刻しました：${time}`);
-      } else {
-        if (!rec.clockIn) return msg("出勤打刻がありません");
-        if (rec.clockOut) return msg("本日はすでに退勤済みです");
-        rec.clockOut = time;
-        msg(`退勤打刻しました：${time}`);
-      }
-
-      localStorage.setItem(KINTAI_KEY, JSON.stringify(records));
-    }
-
+  msg(type === "clockIn" ? `出勤打刻しました：${time}` : `退勤打刻しました：${time}`);
+}
     function msg(t) {
       document.getElementById("status").textContent = t;
     }
